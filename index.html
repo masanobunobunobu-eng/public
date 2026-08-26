@@ -325,10 +325,20 @@ function bMin(hhmm){
   const openMin = toMin(settings.open);
   return raw < openMin ? raw + 1440 : raw;
 }
-function bNowMin(){
-  const raw = nowMin();
+// Minutes elapsed from the VIEWED day's midnight to the actual current moment.
+// This can exceed 1440 (e.g. 1530 = 1:30am the following calendar day) when we're
+// still within that viewed day's late-night business hours.
+function viewedDayElapsedMin(){
+  return (new Date() - currentDate) / 60000;
+}
+// Whether the viewed day is the currently "live" business day (its hours haven't
+// finished yet, whether or not the calendar date has already rolled over past midnight).
+function isActiveViewedDay(){
   const openMin = toMin(settings.open);
-  return raw < openMin ? raw + 1440 : raw;
+  let closeMin = toMin(settings.close);
+  if(closeMin <= openMin) closeMin += 1440;
+  const diff = viewedDayElapsedMin();
+  return diff >= 0 && diff < closeMin;
 }
 
 async function storageGet(key){
@@ -408,8 +418,8 @@ function computeFree(){
   let closeMin = toMin(settings.close);
   if(closeMin <= openMin) closeMin += 1440; // supports crossing midnight
   let boundStart = openMin;
-  if(isToday(currentDate)){
-    boundStart = Math.max(openMin, Math.ceil(bNowMin()/5)*5);
+  if(isActiveViewedDay()){
+    boundStart = Math.max(openMin, Math.ceil(viewedDayElapsedMin()/5)*5);
   }
   const busy = mergeBusy();
   const free = [];
@@ -469,8 +479,8 @@ function renderTimeline(){
     timeline.appendChild(lab);
   }
 
-  // past hatch (today only)
-  if(isToday(currentDate) && boundStart > openMin){
+  // past hatch (active viewed day only)
+  if(isActiveViewedDay() && boundStart > openMin){
     const b = document.createElement('div');
     b.className = 'block past';
     b.style.top = '0px';
@@ -518,12 +528,12 @@ function renderTimeline(){
   });
 
   // now line
-  if(isToday(currentDate)){
-    const nm = nowMin();
-    if(nm >= openMin && nm <= closeMin){
+  {
+    const diff = viewedDayElapsedMin();
+    if(diff >= openMin && diff <= closeMin){
       const nl = document.createElement('div');
       nl.className = 'nowLine';
-      nl.style.top = ((nm-openMin)*PX_PER_MIN)+'px';
+      nl.style.top = ((diff-openMin)*PX_PER_MIN)+'px';
       timeline.appendChild(nl);
     }
   }
@@ -661,7 +671,7 @@ async function handleSaveAppt(){
     alert('開始時刻と施術時間を入力してください。');
     return;
   }
-  if(!editingId && isToday(currentDate) && bMin(start) < bNowMin()){
+  if(!editingId && isActiveViewedDay() && bMin(start) < viewedDayElapsedMin()){
     alert('現在より前の時刻には予約を追加できません。時刻を確認してください。');
     return;
   }
@@ -804,7 +814,7 @@ async function init(){
   });
 
   renderAll();
-  setInterval(()=>{ if(isToday(currentDate)){ renderTimeline(); } }, 60000);
+  setInterval(()=>{ if(isActiveViewedDay()){ renderTimeline(); } }, 60000);
 }
 
 init();
