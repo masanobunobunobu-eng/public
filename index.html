@@ -262,7 +262,7 @@
     <h3 id="modalTitle">予約を追加</h3>
     <div class="field">
       <label>開始時刻</label>
-      <input type="time" id="apptStart">
+      <input type="time" id="apptStart" step="300">
     </div>
     <div class="field">
       <label>施術の種類</label>
@@ -648,6 +648,10 @@ async function handleSaveAppt(){
   }
   if(!start || !duration || duration === 'custom'){
     alert('開始時刻と施術時間を入力してください。');
+    return;
+  }
+  if(!editingId && isToday(currentDate) && toMin(start) < nowMin()){
+    alert('現在より前の時刻には予約を追加できません。時刻を確認してください。');
     return;
   }
   let buffer = modalSelectedBuffer;
