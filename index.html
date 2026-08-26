@@ -319,6 +319,17 @@ function toMin(hhmm){ const [h,m] = hhmm.split(':').map(Number); return h*60+m; 
 function toHHMM(min){ min = ((min%1440)+1440)%1440; const h=Math.floor(min/60), m=min%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`; }
 function nowMin(){ const n=new Date(); return n.getHours()*60+n.getMinutes(); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+// Times earlier than opening time are treated as continuing past midnight (open 10:00/close 2:00 -> "1:00" becomes minute 1500, i.e. "25:00")
+function bMin(hhmm){
+  const raw = toMin(hhmm);
+  const openMin = toMin(settings.open);
+  return raw < openMin ? raw + 1440 : raw;
+}
+function bNowMin(){
+  const raw = nowMin();
+  const openMin = toMin(settings.open);
+  return raw < openMin ? raw + 1440 : raw;
+}
 
 async function storageGet(key){
   try{ const v = localStorage.getItem('akichecker_' + key); return v ? JSON.parse(v) : null; }
@@ -380,7 +391,7 @@ function setActiveChip(container, matchFn){
 
 // ---------- checker logic ----------
 function mergeBusy(){
-  const busy = appointments.map(a=>[toMin(a.start), toMin(a.start)+a.duration+(a.buffer||0)]).sort((a,b)=>a[0]-b[0]);
+  const busy = appointments.map(a=>{ const s = bMin(a.start); return [s, s+a.duration+(a.buffer||0)]; }).sort((a,b)=>a[0]-b[0]);
   const merged = [];
   for(const b of busy){
     if(merged.length && b[0] <= merged[merged.length-1][1]){
@@ -398,7 +409,7 @@ function computeFree(){
   if(closeMin <= openMin) closeMin += 1440; // supports crossing midnight
   let boundStart = openMin;
   if(isToday(currentDate)){
-    boundStart = Math.max(openMin, Math.ceil(nowMin()/5)*5);
+    boundStart = Math.max(openMin, Math.ceil(bNowMin()/5)*5);
   }
   const busy = mergeBusy();
   const free = [];
@@ -483,7 +494,7 @@ function renderTimeline(){
 
   // busy blocks (treatment time)
   appointments.forEach(a=>{
-    const s = toMin(a.start), mainEnd = s + a.duration, buf = a.buffer||0, fullEnd = mainEnd + buf;
+    const s = bMin(a.start), mainEnd = s + a.duration, buf = a.buffer||0, fullEnd = mainEnd + buf;
     const isOil = a.type === 'oil';
     if(mainEnd > openMin && s < closeMin){
       const cs = Math.max(s, openMin), ce = Math.min(mainEnd, closeMin);
@@ -526,11 +537,11 @@ function renderApptList(){
     wrap.innerHTML = '<div class="emptyMsg">この日の予約はまだありません。</div>';
     return;
   }
-  const sorted = [...appointments].sort((a,b)=>toMin(a.start)-toMin(b.start));
+  const sorted = [...appointments].sort((a,b)=>bMin(a.start)-bMin(b.start));
   sorted.forEach(a=>{
     const card = document.createElement('div');
     card.className = 'apptCard' + (a.type==='oil' ? ' oil' : '');
-    const end = toHHMM(toMin(a.start)+a.duration);
+    const end = toHHMM(bMin(a.start)+a.duration);
     card.innerHTML = `
       <div>
         <div class="time numeral">${a.start}〜${end}</div>
@@ -650,7 +661,7 @@ async function handleSaveAppt(){
     alert('開始時刻と施術時間を入力してください。');
     return;
   }
-  if(!editingId && isToday(currentDate) && toMin(start) < nowMin()){
+  if(!editingId && isToday(currentDate) && bMin(start) < bNowMin()){
     alert('現在より前の時刻には予約を追加できません。時刻を確認してください。');
     return;
   }
@@ -663,10 +674,10 @@ async function handleSaveAppt(){
 
   const name = document.getElementById('apptName').value.trim();
   const type = modalSelectedType === 'oil' ? 'oil' : 'regular';
-  const newRange = [toMin(start), toMin(start)+Number(duration)+Number(buffer)];
+  const newRange = [bMin(start), bMin(start)+Number(duration)+Number(buffer)];
   const overlap = appointments.some(a=>{
     if(editingId && a.id === editingId) return false;
-    const s = toMin(a.start), e = s + a.duration + (a.buffer||0);
+    const s = bMin(a.start), e = s + a.duration + (a.buffer||0);
     return newRange[0] < e && s < newRange[1];
   });
   if(overlap && !confirm('この時間は他の予約と重なっています。このまま保存しますか？')) return;
