@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>空き時間チェッカー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #EFEAE1;
+    --surface: #FBF8F2;
+    --surface-2: #FFFFFF;
+    --ink: #2B2620;
+    --ink-soft: #6B6459;
+    --pine: #2C4A45;
+    --pine-2: #3F6F63;
+    --sage: #A9C4AC;
+    --sage-deep: #6E8F72;
+    --clay: #B4623F;
+    --clay-soft: #E3B39E;
+    --oil: #6E5A9E;
+    --oil-soft: #C7BEE0;
+    --gold: #E0A937;
+    --gold-soft: #F6E3B0;
+    --line: #DAD3C6;
+    --danger: #B4432F;
+    --radius: 14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif;
+    padding-bottom:110px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .app{max-width:520px;margin:0 auto;padding:14px 14px 0;}
+
+  h1,h2,h3,.numeral{font-family:'Zen Maru Gothic','Noto Sans JP',sans-serif;}
+
+  /* ---- topbar ---- */
+  .topbar{
+    display:flex;align-items:center;gap:6px;
+    background:var(--pine);
+    color:#F3EFE6;
+    border-radius:var(--radius);
+    padding:10px 8px;
+    position:sticky; top:8px; z-index:20;
+    box-shadow:0 6px 18px rgba(43,38,32,0.18);
+  }
+  .topbar button{
+    background:rgba(255,255,255,0.12);
+    border:none;color:#F3EFE6;
+    width:40px;height:40px;border-radius:10px;
+    font-size:20px; line-height:1; cursor:pointer;
+  }
+  .topbar button:active{background:rgba(255,255,255,0.28);}
+  .dateLabel{
+    flex:1; text-align:center; font-weight:700; font-size:17px;
+    font-family:'Zen Maru Gothic',sans-serif;
+    padding:0 4px;
+  }
+  .todayBtn{font-size:13px !important; font-weight:700; width:auto !important; padding:0 10px;}
+  .hiddenDateInput{position:absolute; opacity:0; width:0; height:0; pointer-events:none;}
+
+  /* ---- settings ---- */
+  .settingsPanel{
+    background:var(--surface-2); border-radius:var(--radius);
+    margin-top:10px; padding:12px 14px; box-shadow:0 2px 8px rgba(43,38,32,0.06);
+  }
+  .settingsPanel[hidden]{display:none;}
+  .settingsRow{display:flex; gap:10px; align-items:center; margin-bottom:10px;}
+  .settingsRow label{font-size:13px; color:var(--ink-soft); width:52px;}
+  .settingsRow input[type=time]{
+    flex:1; padding:8px; border-radius:8px; border:1px solid var(--line); font-size:15px;
+  }
+  .settingsPanel .primary{width:100%;}
+
+  /* ---- checker ---- */
+  .checker{margin-top:14px;}
+  .sectionTitle{
+    font-size:14px; font-weight:700; color:var(--pine); margin-bottom:8px;
+    display:flex; align-items:center; gap:6px;
+  }
+  .sectionTitle .dot{width:7px;height:7px;border-radius:50%;background:var(--gold);display:inline-block;}
+  .chipRow{display:flex; flex-wrap:wrap; gap:8px;}
+  .chip{
+    background:var(--surface-2); border:1.5px solid var(--line); color:var(--ink);
+    border-radius:999px; padding:9px 14px; font-size:14px; font-weight:700;
+    cursor:pointer; font-family:'Zen Maru Gothic',sans-serif;
+  }
+  .chip.active{background:var(--pine); border-color:var(--pine); color:#fff;}
+  .chip.custom{border-style:dashed;}
+  .customDurWrap{display:flex; gap:8px; margin-top:8px;}
+  .customDurWrap[hidden]{display:none;}
+  .customDurWrap input{flex:1; padding:9px; border-radius:10px; border:1px solid var(--line); font-size:15px;}
+  .customDurWrap button{border:none; background:var(--pine-2); color:#fff; border-radius:10px; padding:0 16px; font-weight:700;}
+
+  .resultBox{
+    margin-top:10px; background:var(--gold-soft); border:1.5px solid var(--gold);
+    border-radius:var(--radius); padding:12px 14px;
+  }
+  .resultBox[hidden]{display:none;}
+  .resultBox pre{
+    white-space:pre-wrap; font-family:'Zen Kaku Gothic New',sans-serif;
+    margin:0 0 10px; font-size:14.5px; line-height:1.7; color:#4a3a12;
+  }
+  .copyBtn{
+    background:var(--pine); color:#fff; border:none; border-radius:10px;
+    padding:9px 14px; font-size:13.5px; font-weight:700; cursor:pointer; width:100%;
+  }
+  .copyBtn.copied{background:var(--sage-deep);}
+
+  /* ---- timeline ---- */
+  .timelineWrap{
+    margin-top:16px; background:var(--surface); border-radius:var(--radius);
+    padding:12px 10px 16px; box-shadow:0 2px 8px rgba(43,38,32,0.06);
+  }
+  .legend{display:flex; flex-wrap:wrap; row-gap:6px; gap:12px; font-size:12px; color:var(--ink-soft); margin-bottom:10px; padding-left:44px;}
+  .legend span{display:flex; align-items:center; gap:5px;}
+  .legend i{width:11px;height:11px;border-radius:3px; display:inline-block;}
+  .timeline{position:relative; margin-left:44px; border-left:1px solid var(--line);}
+  .hourLine{position:absolute; left:0; right:0; border-top:1px solid var(--line);}
+  .hourLabel{
+    position:absolute; left:-44px; width:38px; text-align:right; top:-7px;
+    font-size:12px; color:var(--ink-soft); font-family:'Zen Maru Gothic',sans-serif;
+  }
+  .block{
+    position:absolute; left:6px; right:6px; border-radius:8px;
+    font-size:12.5px; padding:4px 8px; overflow:hidden; color:#fff;
+    font-family:'Zen Maru Gothic',sans-serif; font-weight:500;
+    line-height:1.3;
+  }
+  .block.busy{background:var(--clay);}
+  .block.busy.oil{background:var(--oil);}
+  .block.free{background:var(--sage); opacity:0.55;}
+  .block.match{
+    background:var(--gold); color:#4a3a12; opacity:1;
+    box-shadow:0 0 0 2px var(--gold), 0 2px 6px rgba(224,169,55,0.5);
+  }
+  .block.past{background:repeating-linear-gradient(135deg,#DAD3C6,#DAD3C6 6px,#E7E2D7 6px,#E7E2D7 12px); color:var(--ink-soft);}
+  .block.buffer{background:repeating-linear-gradient(135deg,var(--clay-soft),var(--clay-soft) 6px,#F0DED4 6px,#F0DED4 12px); color:#6b3a24; font-size:11px;}
+  .block.buffer.oil{background:repeating-linear-gradient(135deg,var(--oil-soft),var(--oil-soft) 6px,#EDE9F5 6px,#EDE9F5 12px); color:#3f3462;}
+  .nowLine{position:absolute; left:0; right:0; height:0; border-top:2px solid var(--danger); z-index:5;}
+  .nowLine::before{
+    content:'今'; position:absolute; left:-30px; top:-9px; background:var(--danger); color:#fff;
+    font-size:10px; border-radius:4px; padding:1px 4px; font-family:'Zen Maru Gothic',sans-serif;
+  }
+
+  /* ---- appointment list ---- */
+  .listSection{margin-top:16px;}
+  .apptCard{
+    background:var(--surface-2); border-radius:12px; padding:12px 14px;
+    display:flex; align-items:center; gap:10px; margin-bottom:8px;
+    box-shadow:0 1px 4px rgba(43,38,32,0.05); cursor:pointer;
+    border-left:5px solid var(--clay);
+  }
+  .apptCard.oil{border-left-color:var(--oil);}
+  .apptCard .time{font-family:'Zen Maru Gothic',sans-serif; font-weight:700; font-size:15px; white-space:nowrap;}
+  .apptCard .dur{font-size:12px; color:var(--ink-soft);}
+  .apptCard .name{flex:1; font-size:14px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .apptCard .del{
+    background:none; border:none; color:var(--ink-soft); font-size:18px; padding:4px 6px; cursor:pointer;
+  }
+  .emptyMsg{color:var(--ink-soft); font-size:13.5px; padding:10px 2px;}
+
+  /* ---- fab ---- */
+  .fab{
+    position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
+    max-width:492px; width:calc(100% - 28px);
+    background:var(--pine); color:#fff; border:none; border-radius:14px;
+    padding:15px; font-size:15.5px; font-weight:700; cursor:pointer;
+    font-family:'Zen Maru Gothic',sans-serif; box-shadow:0 8px 20px rgba(43,38,32,0.25);
+    z-index:30;
+  }
+
+  /* ---- modal ---- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(43,38,32,0.45);
+    display:flex; align-items:flex-end; justify-content:center; z-index:50;
+  }
+  .overlay[hidden]{display:none;}
+  .modal{
+    background:var(--surface-2); width:100%; max-width:520px;
+    border-radius:20px 20px 0 0; padding:20px 18px 24px;
+    max-height:88vh; overflow-y:auto;
+  }
+  .modal h3{margin:0 0 14px; font-size:18px; color:var(--pine);}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:13px; color:var(--ink-soft); margin-bottom:6px; font-weight:700;}
+  .field input[type=time], .field input[type=text]{
+    width:100%; padding:11px; border-radius:10px; border:1px solid var(--line); font-size:16px;
+  }
+  .modalBtns{display:flex; gap:8px; margin-top:18px;}
+  .modalBtns button{
+    flex:1; padding:13px; border-radius:12px; border:none; font-size:15px; font-weight:700; cursor:pointer;
+    font-family:'Zen Maru Gothic',sans-serif;
+  }
+  .modalBtns .primary{background:var(--pine); color:#fff;}
+  .modalBtns .secondary{background:var(--bg); color:var(--ink);}
+  .modalBtns .danger{background:var(--danger); color:#fff; flex:0 0 auto; width:64px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <button id="prevDay" aria-label="前日">‹</button>
+    <div class="dateLabel" id="dateLabel">--</div>
+    <button id="nextDay" aria-label="翌日">›</button>
+    <button class="todayBtn" id="todayBtn">今日</button>
+    <button id="settingsBtn" aria-label="設定">⚙</button>
+    <input type="date" id="jumpDate" class="hiddenDateInput">
+  </div>
+
+  <div class="settingsPanel" id="settingsPanel" hidden>
+    <div class="settingsRow">
+      <label>開店</label><input type="time" id="openTime">
+    </div>
+    <div class="settingsRow">
+      <label>閉店</label><input type="time" id="closeTime">
+    </div>
+    <button class="modalBtns primary" id="saveSettingsBtn" style="border:none;border-radius:10px;padding:11px;font-weight:700;background:var(--pine);color:#fff;">この時間で保存</button>
+  </div>
+
+  <div class="checker">
+    <div class="sectionTitle"><span class="dot"></span>空き時間をチェック（コース時間を選択）</div>
+    <div class="chipRow" id="durationChips"></div>
+    <div class="customDurWrap" id="customDurWrap" hidden>
+      <input type="number" id="customDurInput" placeholder="分数（例：45）" inputmode="numeric">
+      <button id="customDurGo">確認</button>
+    </div>
+    <div class="resultBox" id="resultBox" hidden>
+      <pre id="resultText"></pre>
+      <button class="copyBtn" id="copyBtn">LINE返信用にコピーする</button>
+    </div>
+  </div>
+
+  <div class="timelineWrap">
+    <div class="legend">
+      <span><i style="background:var(--clay)"></i>整体</span>
+      <span><i style="background:var(--oil)"></i>オイル</span>
+      <span><i style="background:var(--clay-soft)"></i>空け時間</span>
+      <span><i style="background:var(--sage);opacity:.7"></i>空き</span>
+      <span><i style="background:var(--gold)"></i>案内できる</span>
+    </div>
+    <div class="timeline" id="timeline"></div>
+  </div>
+
+  <div class="listSection">
+    <div class="sectionTitle"><span class="dot"></span>この日の予約一覧（タップで編集）</div>
+    <div id="apptList"></div>
+  </div>
+</div>
+
+<button class="fab" id="addBtn">＋ 予約を追加する</button>
+
+<div class="overlay" id="modalOverlay" hidden>
+  <div class="modal">
+    <h3 id="modalTitle">予約を追加</h3>
+    <div class="field">
+      <label>開始時刻</label>
+      <input type="time" id="apptStart">
+    </div>
+    <div class="field">
+      <label>施術の種類</label>
+      <div class="chipRow" id="modalTypeChips"></div>
+    </div>
+    <div class="field">
+      <label>施術時間</label>
+      <div class="chipRow" id="modalDurationChips"></div>
+      <div class="customDurWrap" id="modalCustomWrap" style="margin-top:8px;">
+        <input type="number" id="modalCustomInput" placeholder="分数（例：45）" inputmode="numeric">
+      </div>
+    </div>
+    <div class="field">
+      <label>次の予約まで空ける時間</label>
+      <div class="chipRow" id="modalBufferChips"></div>
+      <div class="customDurWrap" id="modalBufferCustomWrap" style="margin-top:8px;">
+        <input type="number" id="modalBufferCustomInput" placeholder="分数（例：15）" inputmode="numeric">
+      </div>
+    </div>
+    <div class="field">
+      <label>お客様名（任意）</label>
+      <input type="text" id="apptName" placeholder="例：田中様">
+    </div>
+    <div class="modalBtns">
+      <button class="danger" id="deleteBtn" hidden>削除</button>
+      <button class="secondary" id="cancelBtn">キャンセル</button>
+      <button class="primary" id="saveApptBtn">保存する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DUR_PRESETS = [10,30,50,60,70,80,100,110];
+const BUFFER_PRESETS = [0,5,10,15,20,30];
+const TYPE_OPTIONS = [ {val:'regular', label:'整体'}, {val:'oil', label:'オイル'} ];
+const WEEKDAYS = ['日','月','火','水','木','金','土'];
+const PX_PER_MIN = 1.15;
+
+let settings = { open: '10:00', close: '23:30' };
+let currentDate = startOfDay(new Date());
+let appointments = [];
+let activeDuration = null;
+let editingId = null;
+
+function startOfDay(d){ const n = new Date(d); n.setHours(0,0,0,0); return n; }
+function dateKey(d){
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function isSameDay(a,b){ return dateKey(a)===dateKey(b); }
+function isToday(d){ return isSameDay(d, startOfDay(new Date())); }
+function displayDate(d){ return `${d.getMonth()+1}月${d.getDate()}日(${WEEKDAYS[d.getDay()]})`; }
+function toMin(hhmm){ const [h,m] = hhmm.split(':').map(Number); return h*60+m; }
+function toHHMM(min){ min = ((min%1440)+1440)%1440; const h=Math.floor(min/60), m=min%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`; }
+function nowMin(){ const n=new Date(); return n.getHours()*60+n.getMinutes(); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+async function storageGet(key){
+  try{ const v = localStorage.getItem('akichecker_' + key); return v ? JSON.parse(v) : null; }
+  catch(e){ return null; }
+}
+async function storageSet(key, value){
+  try{ localStorage.setItem('akichecker_' + key, JSON.stringify(value)); return true; }
+  catch(e){ console.error('storage set failed', e); return false; }
+}
+
+async function loadSettings(){
+  const s = await storageGet('settings');
+  if(s) settings = s;
+  document.getElementById('openTime').value = settings.open;
+  document.getElementById('closeTime').value = settings.close;
+}
+async function saveSettingsFromForm(){
+  const o = document.getElementById('openTime').value;
+  const c = document.getElementById('closeTime').value;
+  if(!o || !c){ return; }
+  settings = { ...settings, open:o, close:c };
+  await storageSet('settings', settings);
+  document.getElementById('settingsPanel').hidden = true;
+  renderAll();
+}
+
+async function loadAppointmentsForCurrentDate(){
+  const list = await storageGet('appt_'+dateKey(currentDate));
+  appointments = list || [];
+}
+async function saveAppointmentsForCurrentDate(){
+  await storageSet('appt_'+dateKey(currentDate), appointments);
+}
+
+function buildChips(container, values, onPick, withCustom, zeroLabel){
+  container.innerHTML = '';
+  values.forEach(v=>{
+    const chip = document.createElement('button');
+    chip.className = 'chip';
+    chip.textContent = (v===0 && zeroLabel) ? zeroLabel : v+'分';
+    chip.dataset.val = v;
+    chip.addEventListener('click', ()=>onPick(v, chip, container));
+    container.appendChild(chip);
+  });
+  if(withCustom){
+    const chip = document.createElement('button');
+    chip.className = 'chip custom';
+    chip.textContent = 'その他';
+    chip.addEventListener('click', ()=>onPick('custom', chip, container));
+    container.appendChild(chip);
+  }
+}
+
+function setActiveChip(container, matchFn){
+  [...container.querySelectorAll('.chip')].forEach(c=>{
+    c.classList.toggle('active', matchFn(c));
+  });
+}
+
+// ---------- checker logic ----------
+function mergeBusy(){
+  const busy = appointments.map(a=>[toMin(a.start), toMin(a.start)+a.duration+(a.buffer||0)]).sort((a,b)=>a[0]-b[0]);
+  const merged = [];
+  for(const b of busy){
+    if(merged.length && b[0] <= merged[merged.length-1][1]){
+      merged[merged.length-1][1] = Math.max(merged[merged.length-1][1], b[1]);
+    } else {
+      merged.push([...b]);
+    }
+  }
+  return merged;
+}
+
+function computeFree(){
+  const openMin = toMin(settings.open);
+  let closeMin = toMin(settings.close);
+  if(closeMin <= openMin) closeMin += 1440; // supports crossing midnight
+  let boundStart = openMin;
+  if(isToday(currentDate)){
+    boundStart = Math.max(openMin, Math.ceil(nowMin()/5)*5);
+  }
+  const busy = mergeBusy();
+  const free = [];
+  let cursor = boundStart;
+  for(const [bs,be] of busy){
+    const s = Math.max(bs, openMin), e = Math.min(be, closeMin);
+    if(e <= cursor) continue;
+    if(s > cursor){ free.push([cursor, Math.min(s, closeMin)]); }
+    cursor = Math.max(cursor, e);
+  }
+  if(cursor < closeMin) free.push([cursor, closeMin]);
+  return { openMin, closeMin, boundStart, free: free.filter(f=>f[1]-f[0] > 0) };
+}
+
+function renderChecker(){
+  const box = document.getElementById('resultBox');
+  const txt = document.getElementById('resultText');
+  if(activeDuration == null){ box.hidden = true; return; }
+  const { free } = computeFree();
+  const qualifying = free.filter(f => f[1]-f[0] >= activeDuration);
+  const dayLabel = isToday(currentDate) ? '本日' : displayDate(currentDate);
+  let lines = [];
+  if(qualifying.length === 0){
+    lines.push(`${dayLabel}は${activeDuration}分のご案内できる時間が見当たりません🙇`);
+  } else {
+    lines.push(`${dayLabel}${activeDuration}分コースでしたら`);
+    qualifying.forEach(([s,e])=>{
+      lines.push(`・${toHHMM(s)}〜${toHHMM(e)}`);
+    });
+    lines.push('でしたらご案内可能です😊');
+  }
+  txt.textContent = lines.join('\n');
+  box.hidden = false;
+  document.getElementById('copyBtn').classList.remove('copied');
+  document.getElementById('copyBtn').textContent = 'LINE返信用にコピーする';
+}
+
+// ---------- timeline ----------
+function renderTimeline(){
+  const timeline = document.getElementById('timeline');
+  timeline.innerHTML = '';
+  const { openMin, closeMin, boundStart, free } = computeFree();
+  const total = closeMin - openMin;
+  timeline.style.height = (total * PX_PER_MIN) + 'px';
+
+  // hour gridlines
+  for(let m = Math.ceil(openMin/60)*60; m <= closeMin; m += 60){
+    const top = (m - openMin) * PX_PER_MIN;
+    const gl = document.createElement('div');
+    gl.className = 'hourLine';
+    gl.style.top = top+'px';
+    timeline.appendChild(gl);
+    const lab = document.createElement('div');
+    lab.className = 'hourLabel numeral';
+    lab.style.top = top+'px';
+    lab.textContent = toHHMM(m);
+    timeline.appendChild(lab);
+  }
+
+  // past hatch (today only)
+  if(isToday(currentDate) && boundStart > openMin){
+    const b = document.createElement('div');
+    b.className = 'block past';
+    b.style.top = '0px';
+    b.style.height = ((boundStart-openMin)*PX_PER_MIN)+'px';
+    b.textContent = '経過';
+    timeline.appendChild(b);
+  }
+
+  // free blocks
+  free.forEach(([s,e])=>{
+    const b = document.createElement('div');
+    const isMatch = activeDuration != null && (e-s) >= activeDuration;
+    b.className = 'block ' + (isMatch ? 'match' : 'free');
+    b.style.top = ((s-openMin)*PX_PER_MIN)+'px';
+    b.style.height = Math.max((e-s)*PX_PER_MIN, 16)+'px';
+    if((e-s)*PX_PER_MIN > 20){
+      b.textContent = isMatch ? `${toHHMM(s)}〜${toHHMM(e)} 案内OK` : `${toHHMM(s)}〜${toHHMM(e)}`;
+    }
+    timeline.appendChild(b);
+  });
+
+  // busy blocks (treatment time)
+  appointments.forEach(a=>{
+    const s = toMin(a.start), mainEnd = s + a.duration, buf = a.buffer||0, fullEnd = mainEnd + buf;
+    const isOil = a.type === 'oil';
+    if(mainEnd > openMin && s < closeMin){
+      const cs = Math.max(s, openMin), ce = Math.min(mainEnd, closeMin);
+      const b = document.createElement('div');
+      b.className = 'block busy' + (isOil ? ' oil' : '');
+      b.style.top = ((cs-openMin)*PX_PER_MIN)+'px';
+      b.style.height = Math.max((ce-cs)*PX_PER_MIN, 16)+'px';
+      b.textContent = `${a.start}〜${toHHMM(mainEnd)}${a.name ? ' '+a.name : ''}`;
+      timeline.appendChild(b);
+    }
+    // buffer segment (kept open for cleanup/next prep, not bookable)
+    if(buf > 0 && fullEnd > openMin && mainEnd < closeMin){
+      const cs = Math.max(mainEnd, openMin), ce = Math.min(fullEnd, closeMin);
+      const bb = document.createElement('div');
+      bb.className = 'block buffer' + (isOil ? ' oil' : '');
+      bb.style.top = ((cs-openMin)*PX_PER_MIN)+'px';
+      bb.style.height = Math.max((ce-cs)*PX_PER_MIN, 12)+'px';
+      if((ce-cs)*PX_PER_MIN > 14) bb.textContent = `空け${buf}分`;
+      timeline.appendChild(bb);
+    }
+  });
+
+  // now line
+  if(isToday(currentDate)){
+    const nm = nowMin();
+    if(nm >= openMin && nm <= closeMin){
+      const nl = document.createElement('div');
+      nl.className = 'nowLine';
+      nl.style.top = ((nm-openMin)*PX_PER_MIN)+'px';
+      timeline.appendChild(nl);
+    }
+  }
+}
+
+// ---------- appointment list ----------
+function renderApptList(){
+  const wrap = document.getElementById('apptList');
+  wrap.innerHTML = '';
+  if(appointments.length === 0){
+    wrap.innerHTML = '<div class="emptyMsg">この日の予約はまだありません。</div>';
+    return;
+  }
+  const sorted = [...appointments].sort((a,b)=>toMin(a.start)-toMin(b.start));
+  sorted.forEach(a=>{
+    const card = document.createElement('div');
+    card.className = 'apptCard' + (a.type==='oil' ? ' oil' : '');
+    const end = toHHMM(toMin(a.start)+a.duration);
+    card.innerHTML = `
+      <div>
+        <div class="time numeral">${a.start}〜${end}</div>
+        <div class="dur">${a.type==='oil' ? 'オイル' : '整体'}・${a.duration}分${a.buffer ? ' ・空け'+a.buffer+'分' : ''}</div>
+      </div>
+      <div class="name">${a.name ? a.name : ''}</div>
+      <button class="del" data-id="${a.id}">✕</button>
+    `;
+    card.addEventListener('click', (e)=>{
+      if(e.target.classList.contains('del')) return;
+      openModal(a);
+    });
+    card.querySelector('.del').addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      if(confirm('この予約を削除しますか？')){
+        appointments = appointments.filter(x=>x.id !== a.id);
+        await saveAppointmentsForCurrentDate();
+        renderAll();
+      }
+    });
+    wrap.appendChild(card);
+  });
+}
+
+// ---------- modal ----------
+let modalSelectedDuration = null;
+let modalSelectedBuffer = null;
+let modalSelectedType = 'regular';
+function renderTypeChips(selected){
+  const container = document.getElementById('modalTypeChips');
+  container.innerHTML = '';
+  TYPE_OPTIONS.forEach(opt=>{
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'chip' + (selected===opt.val ? ' active' : '');
+    chip.textContent = opt.label;
+    chip.addEventListener('click', ()=>{
+      modalSelectedType = opt.val;
+      renderTypeChips(modalSelectedType);
+    });
+    container.appendChild(chip);
+  });
+}
+function openModal(appt){
+  editingId = appt ? appt.id : null;
+  document.getElementById('modalTitle').textContent = appt ? '予約を編集' : '予約を追加';
+  document.getElementById('apptStart').value = appt ? appt.start : '';
+  document.getElementById('apptName').value = appt ? (appt.name||'') : '';
+  document.getElementById('deleteBtn').hidden = !appt;
+
+  // treatment type
+  modalSelectedType = appt ? (appt.type || 'regular') : (settings.lastType || 'regular');
+  renderTypeChips(modalSelectedType);
+
+  // duration chips
+  modalSelectedDuration = appt ? appt.duration : null;
+  document.getElementById('modalCustomWrap').hidden = true;
+  document.getElementById('modalCustomInput').value = '';
+  buildChips(document.getElementById('modalDurationChips'), DUR_PRESETS, (d, chip, container)=>{
+    if(d === 'custom'){
+      document.getElementById('modalCustomWrap').hidden = false;
+      setActiveChip(container, c=>c===chip);
+      modalSelectedDuration = 'custom';
+    } else {
+      document.getElementById('modalCustomWrap').hidden = true;
+      modalSelectedDuration = d;
+      setActiveChip(container, c=>c===chip);
+    }
+  }, true);
+  if(appt && !DUR_PRESETS.includes(appt.duration)){
+    document.getElementById('modalCustomWrap').hidden = false;
+    document.getElementById('modalCustomInput').value = appt.duration;
+    setActiveChip(document.getElementById('modalDurationChips'), c=>c.classList.contains('custom'));
+  } else if(appt){
+    setActiveChip(document.getElementById('modalDurationChips'), c=>Number(c.dataset.val)===appt.duration);
+  }
+
+  // buffer chips (defaults to last-used buffer for a new booking)
+  const defaultBuffer = appt ? (appt.buffer||0) : (settings.lastBuffer!=null ? settings.lastBuffer : 0);
+  modalSelectedBuffer = defaultBuffer;
+  document.getElementById('modalBufferCustomWrap').hidden = true;
+  document.getElementById('modalBufferCustomInput').value = '';
+  buildChips(document.getElementById('modalBufferChips'), BUFFER_PRESETS, (d, chip, container)=>{
+    if(d === 'custom'){
+      document.getElementById('modalBufferCustomWrap').hidden = false;
+      setActiveChip(container, c=>c===chip);
+      modalSelectedBuffer = 'custom';
+    } else {
+      document.getElementById('modalBufferCustomWrap').hidden = true;
+      modalSelectedBuffer = d;
+      setActiveChip(container, c=>c===chip);
+    }
+  }, true, '空けない');
+  if(!BUFFER_PRESETS.includes(defaultBuffer)){
+    document.getElementById('modalBufferCustomWrap').hidden = false;
+    document.getElementById('modalBufferCustomInput').value = defaultBuffer;
+    setActiveChip(document.getElementById('modalBufferChips'), c=>c.classList.contains('custom'));
+  } else {
+    setActiveChip(document.getElementById('modalBufferChips'), c=>Number(c.dataset.val)===defaultBuffer);
+  }
+
+  document.getElementById('modalOverlay').hidden = false;
+}
+function closeModal(){
+  document.getElementById('modalOverlay').hidden = true;
+  editingId = null;
+}
+
+async function handleSaveAppt(){
+  const start = document.getElementById('apptStart').value;
+  let duration = modalSelectedDuration;
+  if(duration === 'custom' || duration == null){
+    const cv = Number(document.getElementById('modalCustomInput').value);
+    if(cv > 0) duration = cv;
+  }
+  if(!start || !duration || duration === 'custom'){
+    alert('開始時刻と施術時間を入力してください。');
+    return;
+  }
+  let buffer = modalSelectedBuffer;
+  if(buffer === 'custom'){
+    const bv = Number(document.getElementById('modalBufferCustomInput').value);
+    buffer = bv > 0 ? bv : 0;
+  }
+  if(buffer == null) buffer = 0;
+
+  const name = document.getElementById('apptName').value.trim();
+  const type = modalSelectedType === 'oil' ? 'oil' : 'regular';
+  const newRange = [toMin(start), toMin(start)+Number(duration)+Number(buffer)];
+  const overlap = appointments.some(a=>{
+    if(editingId && a.id === editingId) return false;
+    const s = toMin(a.start), e = s + a.duration + (a.buffer||0);
+    return newRange[0] < e && s < newRange[1];
+  });
+  if(overlap && !confirm('この時間は他の予約と重なっています。このまま保存しますか？')) return;
+
+  if(editingId){
+    appointments = appointments.map(a=> a.id===editingId ? {...a, start, duration:Number(duration), buffer:Number(buffer), name, type} : a);
+  } else {
+    appointments.push({ id: uid(), start, duration:Number(duration), buffer:Number(buffer), name, type });
+  }
+  settings.lastBuffer = Number(buffer);
+  settings.lastType = type;
+  await storageSet('settings', settings);
+  await saveAppointmentsForCurrentDate();
+  closeModal();
+  renderAll();
+}
+
+async function handleDeleteAppt(){
+  if(!editingId) return;
+  if(!confirm('この予約を削除しますか？')) return;
+  appointments = appointments.filter(a=>a.id !== editingId);
+  await saveAppointmentsForCurrentDate();
+  closeModal();
+  renderAll();
+}
+
+// ---------- top-level render ----------
+function renderAll(){
+  document.getElementById('dateLabel').textContent = displayDate(currentDate);
+  renderTimeline();
+  renderApptList();
+  renderChecker();
+}
+
+async function goToDate(d){
+  currentDate = startOfDay(d);
+  await loadAppointmentsForCurrentDate();
+  renderAll();
+}
+
+// ---------- init ----------
+async function init(){
+  await loadSettings();
+  await loadAppointmentsForCurrentDate();
+
+  buildChips(document.getElementById('durationChips'), DUR_PRESETS, (d, chip, container)=>{
+    if(d === 'custom'){
+      document.getElementById('customDurWrap').hidden = false;
+      setActiveChip(container, c=>c===chip);
+    } else {
+      document.getElementById('customDurWrap').hidden = true;
+      activeDuration = (activeDuration === d) ? null : d;
+      setActiveChip(container, c=> activeDuration===d && c===chip);
+      renderChecker(); renderTimeline();
+    }
+  }, true);
+
+  document.getElementById('customDurGo').addEventListener('click', ()=>{
+    const v = Number(document.getElementById('customDurInput').value);
+    if(v > 0){
+      activeDuration = v;
+      setActiveChip(document.getElementById('durationChips'), c=>c.classList.contains('custom'));
+      renderChecker(); renderTimeline();
+    }
+  });
+
+  document.getElementById('prevDay').addEventListener('click', ()=>{
+    const d = new Date(currentDate); d.setDate(d.getDate()-1); goToDate(d);
+  });
+  document.getElementById('nextDay').addEventListener('click', ()=>{
+    const d = new Date(currentDate); d.setDate(d.getDate()+1); goToDate(d);
+  });
+  document.getElementById('todayBtn').addEventListener('click', ()=> goToDate(new Date()));
+  document.getElementById('dateLabel').addEventListener('click', ()=>{
+    document.getElementById('jumpDate').value = dateKey(currentDate);
+    document.getElementById('jumpDate').showPicker ? document.getElementById('jumpDate').showPicker() : document.getElementById('jumpDate').click();
+  });
+  document.getElementById('jumpDate').addEventListener('change', (e)=>{
+    if(e.target.value) goToDate(new Date(e.target.value+'T00:00:00'));
+  });
+
+  document.getElementById('settingsBtn').addEventListener('click', ()=>{
+    const p = document.getElementById('settingsPanel');
+    p.hidden = !p.hidden;
+  });
+  document.getElementById('saveSettingsBtn').addEventListener('click', saveSettingsFromForm);
+
+  document.getElementById('copyBtn').addEventListener('click', async ()=>{
+    const text = document.getElementById('resultText').textContent;
+    const btn = document.getElementById('copyBtn');
+    let ok = false;
+    try{
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    }catch(e){
+      try{
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.top = '0';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+      }catch(e2){ ok = false; }
+    }
+    if(ok){
+      btn.textContent = 'コピーしました！';
+      btn.classList.add('copied');
+      setTimeout(()=>{ btn.textContent='LINE返信用にコピーする'; btn.classList.remove('copied'); }, 1800);
+    } else {
+      alert('自動コピーができない状態です。上の文章を長押しして選択し、コピーしてください。');
+    }
+  });
+
+  document.getElementById('addBtn').addEventListener('click', ()=> openModal(null));
+  document.getElementById('cancelBtn').addEventListener('click', closeModal);
+  document.getElementById('saveApptBtn').addEventListener('click', handleSaveAppt);
+  document.getElementById('deleteBtn').addEventListener('click', handleDeleteAppt);
+  document.getElementById('modalOverlay').addEventListener('click', (e)=>{
+    if(e.target.id === 'modalOverlay') closeModal();
+  });
+
+  renderAll();
+  setInterval(()=>{ if(isToday(currentDate)){ renderTimeline(); } }, 60000);
+}
+
+init();
+</script>
+</body>
+</html>
