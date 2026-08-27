@@ -253,7 +253,7 @@
     <div class="sectionTitle"><span class="dot"></span>この日の予約一覧（タップで編集）</div>
     <div id="apptList"></div>
   </div>
-  <div style="text-align:center; font-size:11px; color:#B0A99A; padding:16px 0 4px;">build 2026-08-27-v4</div>
+  <div style="text-align:center; font-size:11px; color:#B0A99A; padding:16px 0 4px;">build 2026-08-27-v5</div>
 </div>
 
 <button class="fab" id="addBtn">＋ 予約を追加する</button>
@@ -699,7 +699,10 @@ async function handleSaveAppt(){
     const s = bMin(a.start), e = s + a.duration + (a.buffer||0);
     return newRange[0] < e && s < newRange[1];
   });
-  if(overlap && !confirm('この時間は他の予約と重なっています。このまま保存しますか？')) return;
+  if(overlap){
+    alert('この時間は他の予約と重なっています。時間を確認してください。');
+    return;
+  }
 
   if(editingId){
     appointments = appointments.map(a=> a.id===editingId ? {...a, start, duration:Number(duration), buffer:Number(buffer), name, type} : a);
