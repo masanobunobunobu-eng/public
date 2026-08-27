@@ -253,7 +253,7 @@
     <div class="sectionTitle"><span class="dot"></span>この日の予約一覧（タップで編集）</div>
     <div id="apptList"></div>
   </div>
-  <div style="text-align:center; font-size:11px; color:#B0A99A; padding:16px 0 4px;">build 2026-08-27-v3</div>
+  <div style="text-align:center; font-size:11px; color:#B0A99A; padding:16px 0 4px;">build 2026-08-27-v4</div>
 </div>
 
 <button class="fab" id="addBtn">＋ 予約を追加する</button>
@@ -320,11 +320,19 @@ function toMin(hhmm){ const [h,m] = hhmm.split(':').map(Number); return h*60+m; 
 function toHHMM(min){ min = ((min%1440)+1440)%1440; const h=Math.floor(min/60), m=min%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`; }
 function nowMin(){ const n=new Date(); return n.getHours()*60+n.getMinutes(); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
-// Times earlier than opening time are treated as continuing past midnight (open 10:00/close 2:00 -> "1:00" becomes minute 1500, i.e. "25:00")
+// Only times genuinely within the overnight closing window (00:00 up to closing time,
+// e.g. "1:00" when close is "2:00") are treated as continuing past midnight ("25:00").
+// A time like "9:00" when opening is "10:00" is simply before opening, not a wraparound.
 function bMin(hhmm){
   const raw = toMin(hhmm);
   const openMin = toMin(settings.open);
-  return raw < openMin ? raw + 1440 : raw;
+  const closeRaw = toMin(settings.close);
+  if(closeRaw <= openMin && raw < closeRaw) return raw + 1440;
+  return raw;
+}
+// The actual real-world Date/time that a given HH:MM represents on the currently viewed day.
+function apptAbsoluteTime(hhmm){
+  return new Date(currentDate.getTime() + bMin(hhmm)*60000);
 }
 // Minutes elapsed from the VIEWED day's midnight to the actual current moment.
 // This can exceed 1440 (e.g. 1530 = 1:30am the following calendar day) when we're
@@ -672,8 +680,8 @@ async function handleSaveAppt(){
     alert('開始時刻と施術時間を入力してください。');
     return;
   }
-  if(!editingId && isActiveViewedDay() && bMin(start) < viewedDayElapsedMin()){
-    alert('現在より前の時刻には予約を追加できません。時刻を確認してください。');
+  if(!editingId && apptAbsoluteTime(start) < new Date()){
+    alert('過去の日時には予約を追加できません。日付と時刻を確認してください。');
     return;
   }
   let buffer = modalSelectedBuffer;
