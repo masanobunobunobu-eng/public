@@ -232,6 +232,8 @@
       <input type="number" id="customDurInput" placeholder="分数（例：45）" inputmode="numeric">
       <button id="customDurGo">確認</button>
     </div>
+    <div style="margin-top:10px; font-size:12.5px; color:var(--ink-soft); font-weight:700; margin-bottom:6px;">施術後に空け時間を入れる場合</div>
+    <div class="chipRow" id="checkerBufferChips"></div>
     <div class="resultBox" id="resultBox" hidden>
       <pre id="resultText"></pre>
       <button class="copyBtn" id="copyBtn">LINE返信用にコピーする</button>
@@ -253,7 +255,7 @@
     <div class="sectionTitle"><span class="dot"></span>この日の予約一覧（タップで編集）</div>
     <div id="apptList"></div>
   </div>
-  <div style="text-align:center; font-size:11px; color:#B0A99A; padding:16px 0 4px;">build 2026-08-27-v5</div>
+  <div style="text-align:center; font-size:11px; color:#B0A99A; padding:16px 0 4px;">build 2026-08-27-v6</div>
 </div>
 
 <button class="fab" id="addBtn">＋ 予約を追加する</button>
@@ -299,6 +301,7 @@
 const DUR_PRESETS = [10,30,50,60,70,80,100,110];
 const BUFFER_PRESETS = [0,5,10,15,20,30];
 const TYPE_OPTIONS = [ {val:'regular', label:'整体'}, {val:'oil', label:'オイル'} ];
+const CHECKER_BUFFER_PRESETS = [0,5,10,15];
 const WEEKDAYS = ['日','月','火','水','木','金','土'];
 const PX_PER_MIN = 1.15;
 
@@ -306,6 +309,7 @@ let settings = { open: '10:00', close: '23:30' };
 let currentDate = startOfDay(new Date());
 let appointments = [];
 let activeDuration = null;
+let checkerBuffer = 0;
 let editingId = null;
 
 function startOfDay(d){ const n = new Date(d); n.setHours(0,0,0,0); return n; }
@@ -448,7 +452,8 @@ function renderChecker(){
   const txt = document.getElementById('resultText');
   if(activeDuration == null){ box.hidden = true; return; }
   const { free } = computeFree();
-  const qualifying = free.filter(f => f[1]-f[0] >= activeDuration);
+  const needed = activeDuration + checkerBuffer;
+  const qualifying = free.filter(f => f[1]-f[0] >= needed);
   const dayLabel = isToday(currentDate) ? '本日' : displayDate(currentDate);
   let lines = [];
   if(qualifying.length === 0){
@@ -456,7 +461,7 @@ function renderChecker(){
   } else {
     lines.push(`${dayLabel}${activeDuration}分コースでしたら`);
     qualifying.forEach(([s,e])=>{
-      lines.push(`・${toHHMM(s)}〜${toHHMM(e)}`);
+      lines.push(`・${toHHMM(s)}〜${toHHMM(e-checkerBuffer)}`);
     });
     lines.push('でしたらご案内可能です😊');
   }
@@ -501,7 +506,7 @@ function renderTimeline(){
   // free blocks
   free.forEach(([s,e])=>{
     const b = document.createElement('div');
-    const isMatch = activeDuration != null && (e-s) >= activeDuration;
+    const isMatch = activeDuration != null && (e-s) >= activeDuration + checkerBuffer;
     b.className = 'block ' + (isMatch ? 'match' : 'free');
     b.style.top = ((s-openMin)*PX_PER_MIN)+'px';
     b.style.height = Math.max((e-s)*PX_PER_MIN, 16)+'px';
@@ -765,6 +770,13 @@ async function init(){
       renderChecker(); renderTimeline();
     }
   });
+
+  buildChips(document.getElementById('checkerBufferChips'), CHECKER_BUFFER_PRESETS, (d, chip, container)=>{
+    checkerBuffer = d;
+    setActiveChip(container, c=>c===chip);
+    renderChecker(); renderTimeline();
+  }, false, '空けない');
+  setActiveChip(document.getElementById('checkerBufferChips'), c=>Number(c.dataset.val)===checkerBuffer);
 
   document.getElementById('prevDay').addEventListener('click', ()=>{
     const d = new Date(currentDate); d.setDate(d.getDate()-1); goToDate(d);
